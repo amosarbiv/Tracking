@@ -58,7 +58,7 @@ def frameGenerator(steps=10):
         action = random.sample(actions,1)[0]
         for step in range(steps):
             frame, x, y = action(x, y, w, h)
-        yield frame, x, y
+        yield frame
 
 
 def main():
