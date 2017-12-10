@@ -1,5 +1,5 @@
 import numpy as np
-from utils import project_root
+from utils.utils import project_root
 import os
 import random
 from PIL import Image
@@ -51,6 +51,7 @@ def moveLeft(x, y, w, h):
     return next_frame, x-1, y
 
 def frameGenerator(steps=10):
+    """creates binary frames one by one"""
     actions = [moveUp, moveDown, moveLeft, moveRight]
     frame, x, y, w, h = firstFrame()
     while True:
