@@ -15,8 +15,6 @@ def command_line_handler():
 def main():
 
     cmd = command_line_handler()
-
-
     
     face_cascades = cv2.CascadeClassifier(os.path.join(cmd["cascade_path"][0],"haarcascade_frontalface_alt2.xml" ))
     profile_cascades = cv2.CascadeClassifier(os.path.join(cmd["cascade_path"][0],"haarcascade_profileface.xml" ))
