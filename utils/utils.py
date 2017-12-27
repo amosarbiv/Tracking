@@ -8,12 +8,13 @@ PROJECT_ROOT = {'orrbarkat': '/Users/orrbarkat/repos/tracking',
 def project_root():
     return PROJECT_ROOT[os.getlogin()]
 
-def readImages(path):
-    images = glob.glob(os.path.join(path, '*.jpg'))
+def readImages(path, gray=False):
+    images = sorted(glob.glob(os.path.join(path, '*.jpg')))
     for image_path in images:
         img = cv2.imread(image_path)
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        yield gray, 0, 0, 0, 0
+        if gray:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        yield img, 0, 0, 0, 0
 
 
 
