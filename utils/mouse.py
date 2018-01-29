@@ -11,8 +11,8 @@ class Selector():
 
     def accuireTarget(self):
         window_name = "Image"
-        y, x, h, w = [int(item) for item in cv2.selectROI(self.image)]
-        rect = cv2.rectangle(self.image,(y, x), (y+h, x+w),(255,0,0),2)
+        x, y, w, h = [int(item) for item in cv2.selectROI(self.image)]
+        rect = cv2.rectangle(self.image,(x, y), (x+w, y+h),(255,0,0),2)
         cv2.destroyAllWindows()
         cv2.imshow(window_name, rect)
         cv2.waitKey(0)
