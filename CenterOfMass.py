@@ -19,7 +19,7 @@ def createBinaryImage(i,x,y):
 
 def centerOfMass(img, imgX, imgY, h, w):
     
-    (X, Y) = imgX+w , imgY+h
+    X, Y = imgX+w, imgY+h
     
     m = img / (np.sum(img))
 
