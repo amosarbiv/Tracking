@@ -1,6 +1,7 @@
 import os
 import glob
 import cv2
+import pickle
 
 PROJECT_ROOT = {'orrbarkat': '/Users/orrbarkat/repos/tracking',
                 'Amos':'/path/to/your_project'} # replace amos with you username
@@ -38,6 +39,16 @@ def bb_intersection_over_union(boxA, boxB):
 
     # return the intersection over union value
     return iou
+
+def save_obj(obj, name):
+        path = os.path.join(project_root(),'data', name, '.pkl')
+        with open(path, 'wb') as f:
+            pickle.dump(obj, f, 0)
+
+def load_obj(name):
+    path = os.path.join(project_root(),'data', name, '.pkl')
+    with open(path, 'rb') as f:
+        return pickle.load(f)
 
 
 
