@@ -16,6 +16,13 @@ class BackGroundSubtractor:
         ret, mask = cv2.threshold(foreGround, 15, 255, cv2.THRESH_BINARY)
         return mask
 
+    def get_binary(self, frame):
+        foreGround = self.getForeground(denoise(frame))
+        foreGround = cv2.cvtColor(foreGround, cv2.COLOR_BGR2GRAY)
+        ret, mask = cv2.threshold(foreGround, 15, 255, cv2.THRESH_BINARY)
+        return mask
+
+
 
 def denoise(frame):
     frame = cv2.medianBlur(frame, 5)

@@ -1,19 +1,13 @@
 import cv2
-import math
 import numpy as np
 
 from utils.mouse import Selector
 from utils.utils import readImages
 from backgroungRemove import BackGroundSubtractor, denoise
 from CenterOfMass import centerOfMass
+from scipy import ndimage
 
 
-def next_window(x, y, w, h):
-    x_new = max(0, x - w)
-    y_new = max(0, y - h)
-    w_new = 3*w
-    h_new = 3*h
-    return x_new, y_new, w_new, h_new
 
 def bounding_boxes(frame):
     edged = cv2.Canny(frame, 1, 250)
@@ -68,10 +62,15 @@ def bounding_boxes(frame):
 
 
 class Trackable():
-    def __init__(self, box, center=None):
+    def __init__(self, box=None, center=None):
+        assert (box is not None or center is not None)
+        if box is None:
+            w_h = np.array([50, 100])
+            x_y = center - w_h/2
+            box = np.concatenate([x_y, w_h]).astype(np.int)
         self.x, self.y, self.w, self.h = box
-        self.center = self.normalize_center(center) if center is not None\
-            else np.array((self.x + self.w / 2, self.y + self.h / 2), dtype=np.uint)
+        self.center = center if center is not None \
+            else np.array((self.x + self.w / 2, self.y + self.h / 2), dtype=np.int64)
 
     def box(self):
         return self.x, self.y, self.w, self.h
@@ -90,7 +89,9 @@ class Trackable():
         return crop, Trackable(box=(x,y,w,h))
 
     def normalize_center(self, center):
-        return center + np.array([self.x, self.y])
+        if not isinstance(center, np.ndarray):
+            center = np.array(center, dtype=np.int)
+        return center + self.top_left()
 
     def distance(self, other):
         return np.linalg.norm(self.center - other.center)
@@ -108,27 +109,41 @@ class Trackable():
         corner = np.array(self.top_left()) + np.array([self.w, self.h])
         return tuple(corner)
 
+    def center_of_mass(self, frame):
+        center = ndimage.measurements.center_of_mass(frame)
+        center = self.normalize_center(center[::-1]) # numpy images are y,x and we use x,y
+        return Trackable(center=center)
+
 def main():
     frames = readImages(args.images_path)
     frame = next(frames)[0]
     back_subtractor = BackGroundSubtractor(frame)
     y, x, h, w, window_name = Selector(frame).accuireTarget()
     # y, x, h, w, window_name = 208, 247, 105, 60, 'Image'
-    track = []
-    track.append(Trackable(box=(x,y,w,h)))
+    track = list()
+    track.append(Trackable(box=(x, y, w, h)))
 
     for frame, *_ in frames:
         last_tracking = track[-1]
-        mask = back_subtractor.getMask(frame)
-        # window, window_place = last_tracking.tracking_window(mask)
-        # cx, cy = centerOfMass(mask, x, y, h, w)
-        boxes = bounding_boxes(denoise(mask))
-        new_tracking = last_tracking.get_closest(boxes)
+        mask = back_subtractor.get_binary(frame)
+        if args.method == 'correlation':
+            print('correlation not implemented yet')
+            break
+
+        elif args.method == 'edges':
+            mask = back_subtractor.getMask(frame)
+            trackings = bounding_boxes(denoise(mask))
+            new_tracking = last_tracking.get_closest(trackings)
+
+        else:  # center of mass
+            crop, tracking_window = last_tracking.tracking_window(mask)
+            new_tracking = tracking_window.center_of_mass(crop)
+
+
         track.append(new_tracking)
         cv2.rectangle(frame, new_tracking.top_left(), new_tracking.bottom_right(), (0,0,255), 1)
         cv2.imshow(window_name, frame)
         cv2.waitKey(0)
-
 
 
 if __name__ == '__main__':
@@ -136,5 +151,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--images-path')
     parser.add_argument('-s', '--frame-size', type=int, default=200)
+    parser.add_argument('-m', '--method', type=str, choices=['mass', 'correlation', 'edges'], default='mass')
     args = parser.parse_args()
     main()
