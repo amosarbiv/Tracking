@@ -34,8 +34,8 @@ class KalmanFilter:
         return self.to_trackable(estimation), error_estimation
 
     def predict(self):
-        prediction = self.transition @ self.prior
-        error_prediction = (self.transition @ self.P @ self.transition.T) + KalmanFilter.Q
+        prediction = self.transition @ self.estimate
+        error_prediction = (self.transition @ self.error_estimation @ self.transition.T) + KalmanFilter.Q
         return KalmanFilter(prediction, error_prediction)
 
     @staticmethod

@@ -4,7 +4,6 @@ import os
 class Selector():
     def __init__(self, image):
         if isinstance(image, str):
-            assert(os.path.exists(image),True)
             self.image = cv2.imread(image)
         else:
             self.image = image

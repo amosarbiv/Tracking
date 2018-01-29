@@ -3,7 +3,7 @@ import numpy as np
 
 from utils.backgroungRemove import BackGroundSubtractor, denoise
 from utils.mouse import Selector
-from utils.utils import readImages, save_obj
+from utils.utils import readImages, save_obj, bb_intersection_over_union
 from utils.trackable import Trackable
 from trackers.canny import bounding_boxes
 from estimators.kalman import KalmanFilter
@@ -21,10 +21,10 @@ def main():
     kalman = KalmanFilter(np.zeros((6,1)))
     corrected = track[-1]
     kalman.correct(corrected.center)
-    pred = kalman.predict()
+    kalman = kalman.predict()
 
     for frame, *_ in frames:
-        last_tracking = corrected
+        last_tracking = track[-1]
         mask = back_subtractor.get_binary(frame)
         new_tracking = False
         while not new_tracking:
@@ -38,14 +38,22 @@ def main():
                 new_tracking = last_tracking.get_closest(trackings)
 
             else:  # center of mass
+                crop, tracking_window = corrected.tracking_window(mask)
+                new_meas = tracking_window.center_of_mass(crop)
+
                 crop, tracking_window = last_tracking.tracking_window(mask)
                 new_tracking = tracking_window.center_of_mass(crop)
-            last_tracking = tracking_window
+                last_tracking = tracking_window
 
-        corrected, error = pred.correct(new_tracking.center)
-        pred = pred.predict()
-        prediction = KalmanFilter.to_trackable(pred.prior)
+        prediction = KalmanFilter.to_trackable(kalman.prior)
         predictions.append(prediction)
+        if not new_meas:
+            new_meas = prediction
+        diagonal = 2 * np.linalg.norm(np.array(track[-1].top_left())-np.array(track[-1].bottom_right()))
+        if new_meas.distance(new_tracking) > diagonal:
+            new_meas = new_tracking
+        corrected, error = kalman.correct(new_meas.center)
+        kalman = kalman.predict()
         track.append(new_tracking)
         corrections.append(corrected)
         cv2.rectangle(frame, new_tracking.top_left(), new_tracking.bottom_right(), (0,0,255), 1)
