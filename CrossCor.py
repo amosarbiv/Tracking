@@ -169,4 +169,4 @@ class CrossCor():
 
 if __name__ == "__main__":
     tracker = CrossCor()
-    tracker.Track("test.mp4")
+    tracker.Track("/Users/orrbarkat/Downloads/Crowd_PETS09/S2/L1/Time_12-34/View_001/test.mp4")

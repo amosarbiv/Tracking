@@ -47,12 +47,12 @@ def main():
                 crop, tracking_window = last_tracking.tracking_window(frame)
                 #a print to see the tracking window in the real img
                 cv2.rectangle(frame, tracking_window.top_left(), tracking_window.bottom_right(), (255, 255,255), 1)
-                
-                img_gray= cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)#denoise(mask)   
+
+                img_gray= cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)#denoise(mask)
                 #getting the mass of the current img
                 mass = np.sum(img_gray[y:y+h, x:x+w])
                 print("mass:" ,mass)
-                
+
                 #getting the cross correlation coefficient and top left corner
                 coeff, x, y = crossCorTracker.Track(
                     img_gray, target, tracking_window.top_left()[0], tracking_window.bottom_right()[0], tracking_window.top_left()[1], tracking_window.bottom_right()[1])
@@ -100,12 +100,13 @@ def main():
         cv2.rectangle(frame, new_tracking.top_left(),
                       new_tracking.bottom_right(), (0, 0, 255), 1) # tracker red
         cv2.rectangle(frame, corrected.top_left(),
-                   corrected.bottom_right(), (255, 0, 255), 1) #corrected prediction purple 
+                   corrected.bottom_right(), (255, 0, 255), 1) #corrected prediction purple
         cv2.rectangle(frame, prediction.top_left(),
                       prediction.bottom_right(), (255, 255, 255), 1) #white box kalman prediction
         cv2.imshow(window_name, frame)
-        cv2.imshow('imgBlack',mask)
-        cv2.waitKey()
+        k=cv2.waitKey(1) & 0xFF
+        if k == 27:
+            break
 
     #measurements = [item.as_dict() for item in track]
     #save_obj(measurements, 'measurements')
