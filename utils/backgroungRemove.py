@@ -4,7 +4,7 @@ import numpy as np
 
 class BackGroundSubtractor:
     def __init__(self, firstFrame):
-        self.backGroundModel = denoise(firstFrame).astype(np.uint8)
+        self.backGroundModel =  cv2.createBackgroundSubtractorMOG2()
 
     def getForeground(self, frame):
         res = cv2.absdiff(self.backGroundModel, frame)
@@ -12,16 +12,17 @@ class BackGroundSubtractor:
         return res
 
     def getMask(self, frame):
-        foreGround = self.getForeground(denoise(frame))
-        ret, mask = cv2.threshold(foreGround, 15, 255, cv2.THRESH_BINARY)
-        return mask
+        return self.backGroundModel.apply(frame)
 
     def get_binary(self, frame):
-        foreGround = self.getForeground(denoise(frame))
-        foreGround = cv2.cvtColor(foreGround, cv2.COLOR_BGR2GRAY)
+        frame = denoise(frame)
+        foreGround = self.backGroundModel.apply(frame)
+        #foreGround = denoise(foreGround)
+        #foreGround = self.getForeground(denoise(frame))
+        #foreGround = cv2.cvtColor(foreGround, cv2.COLOR_BGR2GRAY)
         ret, mask = cv2.threshold(foreGround, 15, 255, cv2.THRESH_BINARY)
         return mask
-
+        
 
 
 def denoise(frame):

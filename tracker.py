@@ -21,7 +21,10 @@ def main():
     predictions = list()
     track = list()
     track.append(Trackable(box=(x, y, w, h)))
-    kalman = KalmanFilter(np.zeros((6, 1)))
+    center = np.zeros((6, 1))
+    center[0,0] = track[0].center[0]
+    center[3,0] = track[0].center[1]
+    kalman = KalmanFilter(center)
     corrected = track[-1]
     kalman.correct(corrected.center)
     kalman = kalman.predict()
