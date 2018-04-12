@@ -3,10 +3,13 @@
 - brew install socat
 
 ## run:
-- open -a Xquartz
-- socat TCP-LISTEN:6000,reuseaddr,fork UNIX-CLIENT:\"$DISPLAY\" &
-- VID=path/to/video
-- docker run --rm -i -t -e DISPLAY=$(ifconfig en0 | grep inet | awk '$1=="inet" {print $2}'):0 -v $VID:$(pwd)/data/test  -v $(pwd):$(pwd) -w $(pwd) goturn:latest bash
+```bash 
+open -a Xquartz
+socat TCP-LISTEN:6000,reuseaddr,fork UNIX-CLIENT:\"$DISPLAY\" &
+VID=path/to/video
+docker run --rm -i -t -e DISPLAY=$(ifconfig en0 | grep inet | awk '$1=="inet" {print $2}'):0 -v $VID:$(pwd)/data/test  -v $(pwd):$(pwd) -w $(pwd) orrbarkat/goturn:latest bash
+./show_tracker_vot.sh
+```
 
 ## TODO:
 1. read movies without creating groundtruth.txt

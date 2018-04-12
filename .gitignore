@@ -1,4 +1,1 @@
-# Created by .ignore support plugin (hsz.mobi)
-.env/
-.idea/
-tracking.iml
+*.pyc
