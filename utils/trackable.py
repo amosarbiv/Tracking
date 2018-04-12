@@ -3,7 +3,11 @@ from scipy import ndimage
 from utils.mouse import Selector
 
 class Trackable():
-    def __init__(self, box=None, center=None):
+    def __init__(self, box=None, center=None, type=None):
+        if type == 'Polygon':
+            coords = box.reshape(4, 2)
+            x
+
         assert (box is not None or center is not None)
         if box is None:
             w_h = np.array([50, 100])
@@ -60,3 +64,6 @@ class Trackable():
 
     def as_dict(self):
         return {'center': self.center, 'box': self.box()}
+
+    def poly2square(self, corners):
+
