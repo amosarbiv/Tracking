@@ -29,7 +29,7 @@ class tracker_manager:
         self.logger = logger
 
 
-    def trackAll(self, start_video_num, pause_val):
+    def trackAll(self, start_video_num, pause_val=1):
         """Track the objects in the video
         """
 
@@ -74,7 +74,7 @@ class tracker_manager:
                     sMatImageDraw = cv2.rectangle(sMatImageDraw, (int(bbox.x1), int(bbox.y1)), (int(bbox.x2), int(bbox.y2)), (255, 0, 0), 2)
 
                 cv2.imshow('Results', sMatImageDraw)
-                k=cv2.waitKey(0) & 0xFF
+                k=cv2.waitKey(pause_val) & 0xFF
                 if k == 27:
                     break
 

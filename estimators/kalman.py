@@ -26,21 +26,21 @@ class KalmanFilter:
     def correct(self, measurement):
         c = KalmanFilter.C
         meas = measurement.reshape((2,1))
-        amp = self.P @ c.T @ np.linalg.inv(c @ self.P @ c.T + KalmanFilter.R)
-        error_estimation = (np.eye(6) - amp @ c) @ self.P
-        estimation = self.prior + amp @ (meas - (c @ self.prior))
+        amp = np.dot(self.P , np.dot(c.T , np.linalg.inv(np.dot(c , np.dot(self.P , c.T)) + KalmanFilter.R)))
+        error_estimation = np.dot((np.eye(6) - np.dot(amp , c)) , self.P)
+        estimation = self.prior + np.dot(amp , (meas - np.dot(c , self.prior)))
         self.estimate = estimation
         self.error_estimation = error_estimation
         return self.to_trackable(estimation), error_estimation
 
     def predict(self):
-        prediction = self.transition @ self.estimate
-        error_prediction = (self.transition @ self.error_estimation @ self.transition.T) + KalmanFilter.Q
+        prediction = np.dot(self.transition , self.estimate)
+        error_prediction = np.dot(np.dot(self.transition , self.error_estimation) , self.transition.T) + KalmanFilter.Q
         return KalmanFilter(prediction, error_prediction)
 
     @staticmethod
     def to_trackable(state):
-        center = (KalmanFilter.C @ state).reshape(-1).astype(np.int)
+        center = np.dot(KalmanFilter.C , state).reshape(-1).astype(np.int)
         return Trackable(center=center)
 
 

@@ -1,6 +1,5 @@
 import numpy as np
 from scipy import ndimage
-from utils.mouse import Selector
 
 class Trackable():
     def __init__(self, box=None, center=None):

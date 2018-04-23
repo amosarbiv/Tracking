@@ -17,6 +17,7 @@ def readImages(path, gray=False):
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         yield img, 0, 0, 0, 0
 
+
 def bb_intersection_over_union(boxA, boxB):
     # determine the (x, y)-coordinates of the intersection rectangle
     xA = max(boxA[0], boxB[0])

@@ -18,10 +18,3 @@ class Selector():
         return x, y, w, h, window_name
 
 
-if __name__ == '__main__' :
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--image', required=True)
-    args = parser.parse_args()
-    x, y, w, h, *_ = Selector(args.image).accuireTarget()
-    print(x, y, w, h)
