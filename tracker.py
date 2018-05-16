@@ -10,6 +10,27 @@ from trackers.canny import bounding_boxes
 from estimators.kalman import KalmanFilter
 import CrossCorTracker
 
+def showImage(frame, boundingBoxes):
+    window_name = "Final Show"
+    colors = [(0, 0, 255), (255, 0, 255), (255, 255, 255)]
+    cnt = 0
+
+    for box in boundingBoxes:
+        color = colors[cnt]
+        cv2.rectangle(frame, box.top_left(),
+                      box.bottom_right(), color, 1)
+        cnt += 1
+    
+    cv2.imshow(window_name, frame)
+    cv2.waitKey(1)
+
+def isOccluded(maxCoeff, currentCoeff):
+    precent = currentCoeff / maxCoeff 
+    print("precent: %f" % precent)
+    if ( precent < 0.7 ):
+        return True
+    else:
+        return False
 
 def main():
     frames = readImages(args.images_path)
@@ -20,6 +41,10 @@ def main():
     corrections = list()
     predictions = list()
     track = list()
+    
+
+    maxCoeff = 0 
+
     track.append(Trackable(box=(x, y, w, h)))
     center = np.zeros((6, 1))
     center[0,0] = track[0].center[0]
@@ -43,72 +68,58 @@ def main():
             if args.method == 'correlation':
                 #initialize the needed trackers
                 crossCorTracker = CrossCorTracker.CrossCorTracker()
+                
                 #getting the tracking window from the lest measurment
                 crop, tracking_window = last_tracking.tracking_window(frame)
+                
                 #a print to see the tracking window in the real img
-                cv2.rectangle(frame, tracking_window.top_left(), tracking_window.bottom_right(), (255, 255,255), 1)
+                #cv2.rectangle(frame, tracking_window.top_left(), tracking_window.bottom_right(), (255, 255,255), 1)
+                #cv2.imshow('frame', frame)
+                #cv2.waitKey()
                 
                 img_gray= cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)#denoise(mask)   
-                #getting the mass of the current img
-                mass = np.sum(img_gray[y:y+h, x:x+w])
-                print("mass:" ,mass)
                 
                 #getting the cross correlation coefficient and top left corner
                 coeff, x, y = crossCorTracker.Track(
                     img_gray, target, tracking_window.top_left()[0], tracking_window.bottom_right()[0], tracking_window.top_left()[1], tracking_window.bottom_right()[1])
                 print("in tracker coeff is: %f" %coeff)
-                tragetToNewTarget = crossCorTracker.vcorrcoef(target, img_gray[y:y+h, x:x+w])
-                print("tragetToNewTarget: %f" % tragetToNewTarget)
-                # if ( tragetToNewTarget < 0.2):
-                #     target = img_gray[y:y+h, x:x+w]
-                cv2.imshow('target', target)
+                maxCoeff = max(coeff, maxCoeff)
+                occluded = isOccluded(maxCoeff, coeff)
                 #last tracking and new tracking becomes where we've seen the target
-                last_tracking = tracking_window
-                new_tracking = Trackable(box=(x,y,w,h))
+                new_meas = Trackable(box=(x,y,w,h))
                 crop, tracking_window = corrected.tracking_window(mask)
-                new_meas = tracking_window.center_of_mass(crop)
+                
+                #new_meas = tracking_window.center_of_mass(crop)
+            new_tracking = True
 
-            else:  # center of mass
-                crop, tracking_window = corrected.tracking_window(mask)
-                new_meas = tracking_window.center_of_mass(crop)
-
-                crop, tracking_window = last_tracking.tracking_window(mask)
-                new_tracking = tracking_window.center_of_mass(crop)
-                last_tracking = tracking_window
 
         prediction = KalmanFilter.to_trackable(kalman.prior)
         predictions.append(prediction)
-        if not new_meas:
+        if (occluded):
             new_meas = prediction
-        diagonal = 2 * \
-            np.linalg.norm(
-                np.array(track[-1].top_left())-np.array(track[-1].bottom_right()))
-        if new_meas.distance(new_tracking) > diagonal:
-            new_meas = new_tracking
+           
+
+        # diagonal = 2 * \
+        #     np.linalg.norm(
+        #         np.array(track[-1].top_left())-np.array(track[-1].bottom_right()))
+        
+        # if new_meas.distance(new_tracking) > diagonal:
+        #     new_meas = new_tracking
+        
         corrected, error = kalman.correct(new_meas.center)
         kalman = kalman.predict()
-
+        predictedTarget = img_gray[corrected.top_left()[1]:corrected.top_left()[1]+h,corrected.top_left()[0]:corrected.top_left()[0]+w]
         corp , tracking_window = corrected.tracking_window(frame)
-        corectedCoeff, x, y = crossCorTracker.Track(
-                    img_gray, target, tracking_window.top_left()[0], tracking_window.bottom_right()[0], tracking_window.top_left()[1], tracking_window.bottom_right()[1])
-        if (corectedCoeff > coeff):
-            print("corrected won!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            last_tracking =  Trackable(box=(x,y,w,h))
-            new_tracking =  Trackable(box=(x,y,w,h))
+
+        new_tracking = Trackable(center=corrected.center)
+        
         track.append(new_tracking)
         corrections.append(corrected)
-        cv2.rectangle(frame, new_tracking.top_left(),
-                      new_tracking.bottom_right(), (0, 0, 255), 1) # tracker red
-        cv2.rectangle(frame, corrected.top_left(),
-                   corrected.bottom_right(), (255, 0, 255), 1) #corrected prediction purple 
-        cv2.rectangle(frame, prediction.top_left(),
-                      prediction.bottom_right(), (255, 255, 255), 1) #white box kalman prediction
-        cv2.imshow(window_name, frame)
-        cv2.imshow('imgBlack',mask)
-        cv2.waitKey()
-
-    #measurements = [item.as_dict() for item in track]
-    #save_obj(measurements, 'measurements')
+        
+        #viewing the frames
+        boundingBoxes = [new_tracking, tracking_window]
+        showImage(frame, boundingBoxes)
+ 
 
 
 if __name__ == '__main__':
