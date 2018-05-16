@@ -1,8 +1,11 @@
 import numpy as np
 import cv2
+from collections import defaultdict
+
 class CrossCorTracker():
     def __init__(self):
         self.windowPixelJump = 4
+        self.coeffDict = defaultdict()
 
     def vcorrcoef(self, target, window):
             X = np.copy(target)
@@ -35,12 +38,15 @@ class CrossCorTracker():
             return r
 
     def Track(self, img, target,startXPoint, endXPoint, startYPoint, endYPoint):
+        self.coeffDict = defaultdict()
         h = target.shape[0]
         w = target.shape[1]
         # the big calculation section calculating the cross corr coefficient
         #start=time.time()
         maxX, maxY = 0, 0
         maxCrossCoeff=0
+        cv2.imshow('in corr', img)
+        cv2.waitKey(1)
         for currentX in range(startXPoint, endXPoint, self.windowPixelJump):
             for currentY in range(startYPoint, endYPoint, self.windowPixelJump):
                 if ((currentX + w) > endXPoint):
@@ -48,10 +54,9 @@ class CrossCorTracker():
                 if ((currentY + h) > endYPoint):
                     currentY = endYPoint - h
                 # cv2.rectangle(img, (currentX, currentY), (currentX+w, currentY+h), (255,255,255), 1)
-                # cv2.imshow('in corr', img)
-                # cv2.waitKey(1)
-                crossCoeff=self.vcorrcoef(
-                    target, img[currentY:currentY+h, currentX:currentX+w])
+                crossCoeff=abs( self.vcorrcoef(
+                    target, img[currentY:currentY+h, currentX:currentX+w]))
+                self.coeffDict[(currentX, currentY)] = crossCoeff
                 if (crossCoeff > maxCrossCoeff):
                     maxCrossCoeff=crossCoeff
                     maxX=currentX

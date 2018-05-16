@@ -2,7 +2,7 @@ import numpy as np
 from utils.utils import load_obj
 from utils.trackable import Trackable
 
-class KalmanFilter:
+class kalmanFilter:
     Q = np.eye(6)
     R = np.eye(2)
     C = np.zeros((2,6))
@@ -24,9 +24,9 @@ class KalmanFilter:
         self.error_estimation = self.P
 
     def correct(self, measurement):
-        c = KalmanFilter.C
+        c = kalmanFilter.C
         meas = measurement.reshape((2,1))
-        amp = self.P @ c.T @ np.linalg.inv(c @ self.P @ c.T + KalmanFilter.R)
+        amp = self.P @ c.T @ np.linalg.inv(c @ self.P @ c.T + kalmanFilter.R)
         error_estimation = (np.eye(6) - amp @ c) @ self.P
         estimation = self.prior + amp @ (meas - (c @ self.prior))
         self.estimate = estimation
@@ -35,19 +35,19 @@ class KalmanFilter:
 
     def predict(self):
         prediction = self.transition @ self.estimate
-        error_prediction = (self.transition @ self.error_estimation @ self.transition.T) + KalmanFilter.Q
-        return KalmanFilter(prediction, error_prediction)
+        error_prediction = (self.transition @ self.error_estimation @ self.transition.T) + kalmanFilter.Q
+        return kalmanFilter(prediction, error_prediction)
 
     @staticmethod
     def to_trackable(state):
-        center = (KalmanFilter.C @ state).reshape(-1).astype(np.int)
+        center = (kalmanFilter.C @ state).reshape(-1).astype(np.int)
         return Trackable(center=center)
 
 
 def main():
     meas = load_obj('measurments')
 
-    pre = KalmanFilter()
+    pre = kalmanFilter()
 
 
 
