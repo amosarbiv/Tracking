@@ -45,8 +45,8 @@ class CrossCorTracker():
         #start=time.time()
         maxX, maxY = 0, 0
         maxCrossCoeff=0
-        cv2.imshow('in corr', img)
-        cv2.waitKey(1)
+        #cv2.imshow('in corr', img)
+        #cv2.waitKey(1)
         for currentX in range(startXPoint, endXPoint, self.windowPixelJump):
             for currentY in range(startYPoint, endYPoint, self.windowPixelJump):
                 if ((currentX + w) > endXPoint):
