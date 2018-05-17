@@ -100,6 +100,12 @@ class megaTracker():
     def toGray(self, frame):
         return cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     
+    def diffrentFromFirst(self):
+        coeff = self.crossCorTracker.vcorrcoef(self.targets['firstTarget'], self.targets['lastTarget'])
+        if (coeff < 0.5):
+            del self.targets['lastTarget']
+            self.logger.debug('removed last target')
+
     def corrCoeff(self, frame, trackingWindow):
         localMax = 0
         localX = 0
@@ -138,13 +144,18 @@ class megaTracker():
 
             currentTracking = Trackable(box=(x,y,self.firstTargetWidth,self.firstTargetheight))
             
+            self.targets['lastTarget'] = self.cropFromTrackable(grayFrame, currentTracking)
+            self.diffrentFromFirst()
+
             self.kalmanStep(occluded, currentTracking)
 
             boundingBoxes = list()
             boundingBoxes.append(self.lastTracking) 
+            boundingBoxes.append(trackingWindow)
             self.showImages(frame, boundingBoxes)
 
 def main():
+    logging.basicConfig(level = logging.DEBUG, format='[%(asctime)s] %(name)-12s: %(levelname)-8s %(message)s')
     tracker = megaTracker(args.videoPath, args.delay) 
     tracker.mainLoop()
 
