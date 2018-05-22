@@ -16,16 +16,16 @@ class Trackable():
     def box(self):
         return self.x, self.y, self.w, self.h
 
-    def tracking_window(self, frame):
+    def tracking_window(self, frame, scale=1):
         # tracking window is 4 times in size than last detection
-        dims = np.array([self.w, self.h], dtype=np.uint32)
+        dims = np.array([self.w, self.h], dtype=np.int) * scale
         coords = self.center - dims
         for i in range(len(coords)):
             limit = frame.shape[1-i] - 1 - 2*dims[i]
             coords[i] = int(min(limit, max(0, coords[i])))
 
-        x,y = coords
-        w,h = 2*dims
+        x,y = coords.astype(np.int)
+        w,h = (2*dims).astype(np.int)
         crop = frame[y:y+h, x:x+w]
         return crop, Trackable(box=(x,y,w,h))
 

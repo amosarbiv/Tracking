@@ -175,7 +175,7 @@ class megaTracker():
             if (normalSearchWindow):
                 crop, trackingWindow = self.lastTracking.tracking_window(grayFrame)
             else:
-                crop, trackingWindow = self.lastTracking.bigger_tracking_window(grayFrame)
+                crop, trackingWindow = self.lastTracking.tracking_window(grayFrame, scale=2)
             
             #getting the correlation coeff and upper left dot
             currentCoeff, x, y = self.corrCoeff(grayFrame, trackingWindow)
@@ -201,7 +201,7 @@ class megaTracker():
             self.showImages(frame, boundingBoxes)
             self.logger.debug('############')
 def main():
-    logging.basicConfig(level = logging.DEBUG, format='[%(asctime)s] %(name)-12s: %(levelname)-8s %(message)s')
+    logging.basicConfig(level=(logging.DEBUG if args.verbose else logging.INFO), format='[%(asctime)s] %(name)-12s: %(levelname)-8s %(message)s')
     tracker = megaTracker(args.videoPath, args.delay) 
     tracker.mainLoop()
 
@@ -209,6 +209,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--videoPath', required=True)
     parser.add_argument('-d', '--delay', type=int, default=1)
+    parser.add_argument('-v', '--verbose', action='store_true')
     args = parser.parse_args()
     main()
 
