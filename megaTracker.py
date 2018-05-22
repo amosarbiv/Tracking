@@ -207,7 +207,7 @@ def main():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--videoPath')
+    parser.add_argument('-i', '--videoPath', required=True)
     parser.add_argument('-d', '--delay', type=int, default=1)
     args = parser.parse_args()
     main()
