@@ -26,6 +26,7 @@ class megaTracker():
 
         #tracking inits
         self.maxCoeff = 0
+        self.lamda = 0.5
         self.targets = defaultdict()
         self.crossCorTracker = CrossCorTracker.CrossCorTracker()
 
@@ -34,19 +35,19 @@ class megaTracker():
 
     def showImages(self, frame, boundingBoxes):
         colors = [(0, 0, 255), (255, 0, 255), (255, 255, 255)]
-        
+
         cnt = 0
         for box in boundingBoxes:
             color = colors[cnt]
             cv2.rectangle(frame, box.top_left(),
                         box.bottom_right(), color, 1)
             cnt += 1
-        
+
         cv2.imshow(self.finalWindowName, frame)
         cv2.waitKey(self.delay)
 
     def isRubbish(self, currentCoeff):
-        ratio = currentCoeff / self.maxCoeff 
+        ratio = currentCoeff / self.maxCoeff
         self.logger.debug("isRubbish ratio: %f" % ratio)
         if ( ratio < 0.6 ):
             return True
@@ -56,7 +57,7 @@ class megaTracker():
     def initKalman(self, center, dt=1):
         #new kalman filter
         my_filter = KalmanFilter(dim_x=6, dim_z=2)
-        
+
         my_filter.x =  center   # initial state (location and velocity)
 
         my_filter.F = np.array([[1, dt, .5*dt*dt,0,0,0],
@@ -71,7 +72,7 @@ class megaTracker():
         my_filter.P *= 10.                 # covariance matrix
         my_filter.R = 5                      # state uncertainty
         my_filter.Q = Q_discrete_white_noise(2, dt=1, var=0.5, block_size=3) # process uncertainty
-        
+
         self.kalman = my_filter
 
     def cropFromTrackable(self, frame, trackObj):
@@ -86,12 +87,12 @@ class megaTracker():
         #selecting the first Target
         frame = next(self.frames)[0]
         x,y,w,h, window_name = Selector(frame).accuireTarget()
-        firstTarget = Trackable(box=(x, y, w, h))      
+        firstTarget = Trackable(box=(x, y, w, h))
         center = np.zeros((6, 1))
         center[0,0] = firstTarget.center[0]
         center[3,0] = firstTarget.center[1]
         self.initKalman(center)
-        
+
         self.fastMeanTracker = fastMeanTracker.fastMeanTracker(self.cropFromTrackable(frame,firstTarget))
 
         self.lastTracking = firstTarget
@@ -101,30 +102,45 @@ class megaTracker():
         self.firstTargetheight = h
 
     def toGray(self, frame):
-        return cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV).transpose(2,0,1) #cv2.COLOR_BGR2GRAY)
+        cv2.imshow('hue', hsv[0])
+        cv2.waitKey(self.delay)
+        return hsv[0]
+
     def diffrentFromFirst(self):
         coeff = self.crossCorTracker.vcorrcoef(self.targets['firstTarget'], self.targets['lastTarget'])
         coeff = abs(coeff)
         self.logger.debug('diffrent coeff: %f' % coeff)
         if (coeff < 0.4):
-            del self.targets['lastTarget']
+            # del self.targets['lastTarget']
+            self.lamda = 0.3
             self.logger.debug('removed last target')
+        else:
+            self.lamda = 0.65
+
 
     def corrCoeff(self, frame, trackingWindow):
+        coeffs = {}
+        for targetLabel, target in self.targets.items():
+            coeff, x, y = self.crossCorTracker.Track(
+                        frame, target, trackingWindow.top_left()[0], trackingWindow.bottom_right()[0], trackingWindow.top_left()[1], trackingWindow.bottom_right()[1])
+            coeffs[targetLabel] = self.crossCorTracker.coeffDict
+
+        if 'lastTarget' not in coeffs:
+            return coeff, x, y
         localMax = 0
         localX = 0
         localY = 0
         label = ""
-        for targetLabel,target in self.targets.items():
-            coeff, x, y = self.crossCorTracker.Track(
-                        frame, target, trackingWindow.top_left()[0], trackingWindow.bottom_right()[0], trackingWindow.top_left()[1], trackingWindow.bottom_right()[1])
+
+        for (x,y), coeff_1 in coeffs['firstTarget'].items():
+            coeff = (1-self.lamda)*coeff_1 + self.lamda*coeffs['lastTarget'][(x,y)]
             if (coeff > localMax):
                 localMax = coeff
                 localX = x
                 localY = y
-                label = targetLabel
-        self.logger.debug('label won: %s' % label)
+        #         label = targetLabel
+        # self.logger.debug('label won: %s' % label)
         return localMax, localX, localY
 
     def kalmanStep(self,rubbish, currentTracking, grayFrame):
@@ -175,7 +191,7 @@ class megaTracker():
             if (normalSearchWindow):
                 crop, trackingWindow = self.lastTracking.tracking_window(grayFrame)
             else:
-                crop, trackingWindow = self.lastTracking.tracking_window(grayFrame, scale=2)
+                crop, trackingWindow = self.lastTracking.tracking_window(grayFrame, scale=3)
             
             #getting the correlation coeff and upper left dot
             currentCoeff, x, y = self.corrCoeff(grayFrame, trackingWindow)
