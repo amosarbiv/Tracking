@@ -60,3 +60,31 @@ class Trackable():
 
     def as_dict(self):
         return {'center': self.center, 'box': self.box()}
+
+    @staticmethod
+    def from_yolo(boxes, frame, window):
+        result = []
+        height, width = frame.shape[:2]
+        for i in range(len(boxes)):
+            box = boxes[i]
+            x1 = (box[0] - box[2]/2.0) * width
+            y1 = (box[1] - box[3]/2.0) * height
+            x2 = (box[0] + box[2]/2.0) * width
+            y2 = (box[1] + box[3]/2.0) * height
+            trackable = Trackable((int(x1), int(y1), int(x2-x1), int(y2-y1)))
+            if window.inTrackingWindow(trackable):
+                result.append(trackable)
+        return result
+
+    def inTrackingWindow(self, other):
+        # determine the (x, y)-coordinates of the intersection rectangle
+        xA = max(self.x, other.x)
+        yA = max(self.y, other.y)
+        xB = min(self.x+self.w, other.x+other.w)
+        yB = min(self.y+self.h, other.y+other.h)
+
+        # compute the area of intersection rectangle
+        interArea = (xB - xA + 1) * (yB - yA + 1)
+
+        # return the intersection over union value
+        return interArea > 0

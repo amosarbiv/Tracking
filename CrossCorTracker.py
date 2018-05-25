@@ -13,27 +13,18 @@ class CrossCorTracker():
             #handling some size issues
             X_x, X_y = X.shape
             y_x, y_y = y.shape
-            finalXSize, finalYSize = 0, 0
-            if (X_x > y_x):
-                finalXSize = y_x
-            else:
-                finalXSize = X_x
-            
-            if (X_y > y_y):
-                finalYSize = y_y
-            else:
-                finalYSize = X_y
+            finalXSize = min(y_x, X_x)
+            finalYSize = min(X_y, y_y)
 
-            X.resize((finalXSize, finalYSize))
-            y.resize((finalXSize, finalYSize))
-            
+            X = cv2.resize(X, (finalYSize, finalXSize))
+            y = cv2.resize(y, (finalYSize, finalXSize))
+
             X = X.astype(dtype='float64')
             y = y.astype(dtype='float64')
             Xm = X.mean()
             ym = y.mean()
             r_num = np.sum((X-Xm)*(y-ym))
-            r_den = np.sqrt(np.sum(np.square(X-Xm))) * \
-                            np.sqrt(np.sum(np.square(y-ym)))
+            r_den = np.sqrt(np.sum(np.square(X-Xm))) * np.sqrt(np.sum(np.square(y-ym)))
             r = r_num/r_den
             return r
 

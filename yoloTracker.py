@@ -32,11 +32,13 @@ class megaTracker():
         self.lamda = 0.5
         self.targets = defaultdict()
         self.crossCorTracker = CrossCorTracker.CrossCorTracker()
+        self.darknet = load_yolo(cfgfile, weightfile, cuda)
+
         self.userROISelection()
         cv2.destroyAllWindows()
 
     def showImages(self, frame, boundingBoxes):
-        colors = [(0, 0, 255), (255, 0, 255), (255, 255, 255)]
+        colors = [(255, 0, 255), (0, 0, 255), (0, 255, 255), (0, 255, 0), (255, 255, 0), (255, 0, 0), (255, 255, 255)]
 
         cnt = 0
         for box in boundingBoxes:
@@ -58,24 +60,29 @@ class megaTracker():
 
     def initKalman(self, center, dt=1):
         #new kalman filter
-        my_filter = KalmanFilter(dim_x=6, dim_z=2)
-
-        my_filter.x =  center   # initial state (location and velocity)
-
-        my_filter.F = np.array([[1, dt, .5*dt*dt,0,0,0],
-                                        [0,1,dt,0,0,0],
-                                        [0,0,1,0,0,0],
-                                        [0,0,0,1, dt, .5*dt*dt],
-                                        [0,0,0,0,1,dt],
-                                        [0,0,0,0,0,1]])    # state transition matrix
-        H = np.zeros((2,6))
-        H[0,0] = H[1,3] = 1
-        my_filter.H = H    # Measurement function
-        my_filter.P *= 10.                 # covariance matrix
-        my_filter.R = 5                      # state uncertainty
-        my_filter.Q = Q_discrete_white_noise(2, dt=1, var=0.5, block_size=3) # process uncertainty
-
-        self.kalman = my_filter
+        kalman = cv2.KalmanFilter(4,2)
+        kalman.measurementMatrix = np.array([[1,0,0,0],[0,1,0,0]],np.float32)
+        kalman.transitionMatrix = np.array([[1,0,1,0],[0,1,0,1],[0,0,1,0],[0,0,0,1]],np.float32)
+        kalman.processNoiseCov = np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]],np.float32) * 0.03
+        self.kalman = kalman
+# my_filter = KalmanFilter(dim_x=6, dim_z=2)
+        #
+        # my_filter.x =  center   # initial state (location and velocity)
+        #
+        # my_filter.F = np.array([[1, dt, .5*dt*dt,0,0,0],
+        #                                 [0,1,dt,0,0,0],
+        #                                 [0,0,1,0,0,0],
+        #                                 [0,0,0,1, dt, .5*dt*dt],
+        #                                 [0,0,0,0,1,dt],
+        #                                 [0,0,0,0,0,1]])    # state transition matrix
+        # H = np.zeros((2,6))
+        # H[0,0] = H[1,3] = 1
+        # my_filter.H = H    # Measurement function
+        # my_filter.P *= 10.                 # covariance matrix
+        # my_filter.R = 5                      # state uncertainty
+        # my_filter.Q = Q_discrete_white_noise(2, dt=1, var=0.5, block_size=3) # process uncertainty
+        #
+        # self.kalman = my_filter
 
     def cropFromTrackable(self, frame, trackObj):
         startX = trackObj.top_left()[0]
@@ -140,27 +147,21 @@ class megaTracker():
         self.logger.debug('label won: %s' % label)
         return localMax, localX, localY
 
-    def kalmanStep(self,rubbish, currentTracking, grayFrame):
+    def kalmanStep(self, visible, currentTracking, grayFrame):
         #we need to decide if kalman is our last tracking or our measurement
-        self.kalman.predict()
-        prediction = np.dot(self.kalman.H, self.kalman.x).flatten().astype(np.int)
-        prediction = Trackable(center=prediction)
+        tp = self.kalman.predict()
+        # prediction = np.dot(self.kalman.H, self.kalman.x).flatten().astype(np.int)
+        prediction = Trackable(center=np.array([int(tp[0]),int(tp[1])]))
         self.previousTracking = self.lastTracking
-        if (rubbish):
-            occluded = self.isOccluded(self.cropFromTrackable(grayFrame, prediction))
-            self.logger.debug("is Occluded: %r" % occluded)
-            if (not occluded):  
-                self.lastTracking = Trackable(center=prediction)
-                return True
-            else:
-                self.lastTracking = self.previousTracking
-                return False
-        else:
+        if visible:
             self.lastTracking = currentTracking
-            return True
+            self.targets['lastTarget'] = self.cropFromTrackable(grayFrame, currentTracking)
+        else:
+            self.lastTracking = prediction
 
-        self.kalman.update(self.lastTracking.center.reshape(2,1))
-
+        # self.kalman.update(self.lastTracking.center.reshape(2,1))
+        self.kalman.correct(self.lastTracking.center.reshape(2,1).astype(np.float32))
+        return True
 
     def isOccluded(self, kalmanPrediction):
         kalmanCoeff = 0
@@ -175,41 +176,41 @@ class megaTracker():
         else:
             return False
 
-    def fastMeanTrack(self, frame, trackingWindow, croped):
-        croped = cv2.cvtColor(croped, cv2.COLOR_GRAY2BGR)
-        ROI = trackingWindow.box()
-        x,y,w,h = self.fastMeanTracker.track(ROI, frame)
-        self.lastTracking = Trackable(box=(x,y,w,h))
-
     def mainLoop(self):
+        ocludded_duration = 0
         normalSearchWindow = True
         for frame, *_ in self.frames:
             grayFrame = self.toGray(frame)
-            if (normalSearchWindow):
+            if normalSearchWindow:
                 crop, trackingWindow = self.lastTracking.tracking_window(grayFrame)
             else:
-                crop, trackingWindow = self.lastTracking.tracking_window(grayFrame, scale=3)
-            
-            #getting the correlation coeff and upper left dot
-            currentCoeff, x, y = self.corrCoeff(grayFrame, trackingWindow)
+                crop, trackingWindow = self.lastTracking.tracking_window(grayFrame, scale=2)
+            boxes = track(self.darknet, frame)
+            trackables = Trackable.from_yolo(boxes, frame, trackingWindow)
 
-            self.maxCoeff = max(self.maxCoeff, currentCoeff)
-            
-            rubbish = self.isRubbish(currentCoeff)
-            self.logger.debug("rubbish: %r" % rubbish)
-            currentTracking = Trackable(box=(x,y,self.firstTargetWidth,self.firstTargetheight))
-            
-            self.targets['lastTarget'] = self.cropFromTrackable(grayFrame, currentTracking)
-            
-            #self.fastMeanTrack(frame, trackingWindow, crop)
+            max_coeff, max_ind = -1, -1
+            for i, box in enumerate(trackables):
+                prediction_frame = self.toGray(self.cropFromTrackable(frame, box))
+                for targetLabel, target in self.targets.items():
+                    coeff = self.crossCorTracker.vcorrcoef(target, prediction_frame)
 
-            self.diffrentFromFirst()
-            
-            normalSearchWindow = self.kalmanStep(rubbish, currentTracking, grayFrame)
+                    if (coeff > max_coeff):
+                        max_coeff = coeff
+                        max_ind = i
+
+            self.logger.debug("max_coeff: %f" % max_coeff)
+            if max_coeff < 0.2:
+                ocludded_duration += 1
+            else:
+                ocludded_duration = 0
+
+            visible = (ocludded_duration == 0) and max_ind != -1
+            best_track = trackables[max_ind] if visible else None
+            normalSearchWindow = self.kalmanStep(visible, best_track, grayFrame)
             self.logger.debug("normal search window: %r" % normalSearchWindow)
 
             boundingBoxes = list()
-            boundingBoxes.append(self.lastTracking) 
+            boundingBoxes.append(self.lastTracking)
             boundingBoxes.append(trackingWindow)
             self.showImages(frame, boundingBoxes)
             self.logger.debug('############')
@@ -223,8 +224,13 @@ if __name__ == "__main__":
     parser.add_argument('-i', '--videoPath', required=True)
     parser.add_argument('-d', '--delay', type=int, default=1)
     parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument('-c', '--config', required=True)
+    parser.add_argument('-m', '--model', required=True)
+    parser.add_argument('--no-cuda', action='store_true')
     args = parser.parse_args()
 
+    args.cuda = not args.no_cuda and torch.cuda.is_available()
+    args = parser.parse_args()
     main()
 
 
